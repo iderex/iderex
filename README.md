@@ -5,8 +5,8 @@
 <h1 align="center">Hi, I'm Iderex 👋</h1>
 
 <p align="center">
-  <b>IT-security specialist for critical healthcare infrastructure (and KMU 💯) since 2017.</b><br />
-  I build fail-closed, auditable, self-hosted software — from GPU kernels to the Linux kernel.
+  <b>IT-security specialist for critical healthcare infrastructure (and KMU) since 2017.</b><br />
+  I build fail-closed, auditable, self-hosted software - from GPU kernels to the Linux kernel.
 </p>
 
 <p align="center">
@@ -19,13 +19,12 @@
 
 ## About me
 
-I'm a systems programmer who cares about the boring, load-bearing things: **fail-closed defaults, tamper-evident audit trails, and software that never leaves your network.** My day job is keeping critical healthcare infrastructure — and the small businesses nobody else looks after — secure.
+I'm a systems programmer who cares about the boring, load-bearing things: **fail-closed defaults, tamper-evident audit trails, and software that never leaves your network.** My day job is keeping critical healthcare infrastructure, and the small businesses nobody else looks after, secure.
 
-Off the clock I go low-level for fun. I like a problem that forces me down to the metal: a decompressor that has to be correct *and* fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession — **make illegal states unrepresentable, then prove it.**
+I like a problem that forces me down to the metal: a decompressor that has to be correct *and* fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession — **make illegal states unrepresentable, then prove it.**
 
-- 🔒 Security-first by default — missing signature, bound, or permission means *reject*, never *accept*.
 - 🧰 Comfortable across **C, C++/CUDA, C#, Rust, and x64 assembly**.
-- 🏥 Focused on **self-hosted, single-tenant** tools — your data stays yours.
+- 🏥 Focused on **self-hosted, single-tenant** tools.
 - 🐧 Occasional **Linux kernel** contributor.
 
 ---
@@ -91,7 +90,7 @@ My working tree for **Linux kernel** development and upstream contributions.
 
 ## ☕ Sponsor
 
-If something I built saved you time, made your setup a little safer, or was just fun to read — you can buy me a coffee. It keeps the late-night, low-level side projects going. No pressure, always appreciated. 💛
+If something I built saved you time, made your setup a little safer, or was just fun to read, you can buy me a coffee. It keeps the late-night, low-level side projects going. No pressure, always appreciated. 💛
 
 <p>
   <a href="https://www.buymeacoffee.com/iderex">

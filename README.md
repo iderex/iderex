@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="Nils Lehnen — security-first systems programming" width="100%" />
 </div>
 
-<h1 align="center">Hi, I'm Nils Lehnen 👋</h1>
+<h1 align="center">Hi, I'm Iderex 👋</h1>
 
 <p align="center">
   <b>IT-security specialist for critical healthcare infrastructure (and KMU 💯) since 2017.</b><br />

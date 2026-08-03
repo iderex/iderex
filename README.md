@@ -21,7 +21,7 @@
 
 I'm a systems programmer who cares about the boring, load-bearing things: **fail-closed defaults, tamper-evident audit trails, and software that never leaves your network.** My day job is keeping critical healthcare infrastructure, and the small businesses nobody else looks after, secure.
 
-I like a problem that forces me down to the metal: a decompressor that has to be correct *and* fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession — **make illegal states unrepresentable, then prove it.**
+I like a problem that forces me down to the metal: a decompressor that has to be correct _and_ fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession — **make illegal states unrepresentable, then prove it.**
 
 - 🧰 Comfortable across **C, C++/CUDA, C#, Rust, and x64 assembly**.
 - 🏥 Focused on **self-hosted, single-tenant** tools.
@@ -36,6 +36,7 @@ I like a problem that forces me down to the metal: a decompressor that has to be
     <td width="50%" valign="top">
 
 ### 🗜️ [cudec](https://github.com/iderex/cudec)
+
 `C++ · CUDA`
 
 Auditable, fail-closed, fuzz-tested **GPU decompression** in CUDA C++. LZ4 batch-decoded on NVIDIA GPUs today; Snappy, GDeflate and Zstd planned.
@@ -44,6 +45,7 @@ Auditable, fail-closed, fuzz-tested **GPU decompression** in CUDA C++. LZ4 batch
     <td width="50%" valign="top">
 
 ### 🔐 [jellyfin-plugin-sso](https://github.com/iderex/jellyfin-plugin-sso)
+
 `C# · .NET 9`
 
 **Single sign-on for Jellyfin** via OpenID Connect & SAML 2.0 — a security-first revival of the archived `9p4/jellyfin-plugin-sso`, updated for Jellyfin 10.11.
@@ -54,6 +56,7 @@ Auditable, fail-closed, fuzz-tested **GPU decompression** in CUDA C++. LZ4 batch
     <td width="50%" valign="top">
 
 ### 🐜 [swarm.asm](https://github.com/iderex/swarm.asm)
+
 `x64 Assembly · AVX2`
 
 A **Particle Life engine** written entirely in hand-written x64 assembly. Goal: 1,000,000 particles at 60 fps — no GPU, no dependencies, one small exe.
@@ -62,6 +65,7 @@ A **Particle Life engine** written entirely in hand-written x64 assembly. Goal: 
     <td width="50%" valign="top">
 
 ### 🐧 [linux](https://github.com/iderex/linux)
+
 `C`
 
 My working tree for **Linux kernel** development and upstream contributions.

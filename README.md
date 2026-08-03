@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.png" alt="Nils Lehnen — security-first systems programming" width="100%" />
+  <img src="assets/banner.png" alt="" width="100%" />
 </div>
 
 <h1 align="center">Hi, I'm Iderex 👋</h1>

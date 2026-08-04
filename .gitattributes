@@ -1,0 +1,10 @@
+# Text is stored with LF and checked out with LF on every platform, so a clone
+# is normalised whatever the machine's core.autocrlf says. Without this, the
+# only thing keeping CRLF out of the tree is a local git config that does not
+# travel with a clone.
+* text=auto eol=lf
+
+# The banner is image data. Its CR bytes say nothing about line endings, so it
+# is declared binary rather than left to content detection, and eol is cleared
+# because the binary macro does not clear it.
+*.webp binary -eol

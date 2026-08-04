@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.webp" alt="Nils Lehnen — security-first systems programming" width="100%" />
+  <img src="assets/banner.webp" alt="Nils Lehnen - security-first systems programming" width="100%" />
 </div>
 
 <h1 align="center">Hi, I'm Iderex 👋</h1>
@@ -21,7 +21,7 @@
 
 I'm a systems programmer who cares about the boring, load-bearing things: **fail-closed defaults, tamper-evident audit trails, and software that never leaves your network.** My day job is keeping critical healthcare infrastructure, and the small businesses nobody else looks after, secure.
 
-I like a problem that forces me down to the metal: a decompressor that has to be correct _and_ fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession — **make illegal states unrepresentable, then prove it.**
+I like a problem that forces me down to the metal: a decompressor that has to be correct _and_ fuzz-proof, a simulation squeezed into hand-written SIMD, an auth plugin that fails safe, a kernel driver that behaves. Different languages, same obsession - **make illegal states unrepresentable, then prove it.**
 
 - 🧰 Comfortable across **C, C++/CUDA, C#, Rust, and x64 assembly**.
 - 🏥 Focused on **self-hosted, single-tenant** tools.
@@ -48,7 +48,7 @@ Auditable, fail-closed, fuzz-tested **GPU decompression** in CUDA C++. LZ4 batch
 
 `C# · .NET 9`
 
-**Single sign-on for Jellyfin** via OpenID Connect & SAML 2.0 — a security-first revival of the archived `9p4/jellyfin-plugin-sso`, updated for Jellyfin 10.11.
+**Single sign-on for Jellyfin** via OpenID Connect & SAML 2.0 - a security-first revival of the archived `9p4/jellyfin-plugin-sso`, updated for Jellyfin 10.11.
 
   </td>
   </tr>
@@ -59,7 +59,7 @@ Auditable, fail-closed, fuzz-tested **GPU decompression** in CUDA C++. LZ4 batch
 
 `x64 Assembly · AVX2`
 
-A **Particle Life engine** written entirely in hand-written x64 assembly. Goal: 1,000,000 particles at 60 fps — no GPU, no dependencies, one small exe.
+A **Particle Life engine** written entirely in hand-written x64 assembly. Goal: 1,000,000 particles at 60 fps - no GPU, no dependencies, one small exe.
 
   </td>
     <td width="50%" valign="top">

@@ -1,1 +1,10 @@
 node_modules/
+
+# Agent instructions and agent-local configuration. Never tracked here.
+CLAUDE.md
+.claude/
+
+# Local working notes.
+*.local
+*.local.*
+.notes/

@@ -94,3 +94,60 @@ jobs:
       # `prettier --check .` covers Markdown, YAML and JSON, so this file is
       # checked by the job it declares.
       - run: npm run format:check
+
+  assets:
+    name: Keep tracked assets inside the size budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the step sizes blobs out of the index, it never writes one.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse a tracked asset over the budget
+        run: |
+          # The budget, in bytes, and the only place it is written. 600 KiB is the
+          # ceiling the banner re-encode was held to; it leaves the published banner
+          # (420,168 bytes) about a third of its size in headroom, which is enough
+          # for a re-crop or a second image without being enough for a file that
+          # makes the page slow to load. Raising it is a change to this line, which
+          # is a diff somebody reviews, rather than a number in a commit message.
+          budget=614400
+
+          # Sizes come from the index rather than from the working tree, so what is
+          # measured is the blob that would be published and not a file some later
+          # step happened to leave on disk.
+          list=$(mktemp)
+          if ! git ls-files -z -- assets > "$list"; then
+            echo "::error::could not list the tracked files under assets/ -- failing closed instead of reporting a budget nothing was measured against."
+            exit 1
+          fi
+
+          count=0
+          over=0
+          while IFS= read -r -d '' path; do
+            count=$((count + 1))
+            if ! size=$(git cat-file -s ":$path"); then
+              echo "::error::could not read the size of $path -- failing closed."
+              exit 1
+            fi
+            if [ "$size" -gt "$budget" ]; then
+              echo "::error file=$path::$path is $size bytes, over the budget of $budget bytes for tracked files under assets/."
+              over=$((over + 1))
+            else
+              echo "$path: $size bytes, within the budget of $budget bytes."
+            fi
+          done < "$list"
+
+          # A scan that measured nothing would otherwise report the same green as a
+          # scan that measured everything and found it small.
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no tracked files under assets/ -- the scan measured nothing, which is not the same as a tree inside its budget."
+            exit 1
+          fi
+
+          echo "$count tracked file(s) under assets/ measured, $over over budget."
+          [ "$over" -eq 0 ] || exit 1

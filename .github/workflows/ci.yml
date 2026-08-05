@@ -67,3 +67,30 @@ jobs:
               exit 1
               ;;
           esac
+
+  format:
+    name: Check formatting against the pinned Prettier
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the check reads the tree and reports, it never writes a file back.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+      # The Prettier version is pinned once, in package.json and package-lock.json,
+      # and installed from there rather than named again in this file. A version
+      # written in two places is a version that can disagree with itself, and the
+      # run that reformatted the tree used the one in the lock file. `npm ci`
+      # installs the locked version exactly and fails if the lock and the manifest
+      # have drifted apart.
+      - run: npm ci
+      # `prettier --check .` covers Markdown, YAML and JSON, so this file is
+      # checked by the job it declares.
+      - run: npm run format:check

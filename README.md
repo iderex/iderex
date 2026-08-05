@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.webp" alt="Nils Lehnen - security-first systems programming" width="100%" />
+  <img src="assets/banner.webp" alt="" width="100%" />
 </div>
 
 <h1 align="center">Hi, I'm Iderex 👋</h1>

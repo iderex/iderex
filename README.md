@@ -103,3 +103,5 @@ If something I built saved you time, made your setup a little safer, or was just
 </p>
 
 <sub>Every coffee goes toward more auditable, self-hosted, fail-closed open source. Thank you. 🙏</sub>
+
+See NOTICE.md for the intended-use notice.

@@ -7,6 +7,13 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  # Weekly, for the link check: a target can rot without anyone touching this
+  # repository, so the only trigger that catches it is one nothing here causes.
+  # The other two jobs run on this trigger as well. A grep over the tracked tree
+  # and a formatter check cost seconds once a week, and gating them off the
+  # trigger would put a condition on every job to save that.
+  schedule:
+    - cron: "17 3 * * 0"
 
 # Nothing in this workflow writes. Each job re-grants only what it reads with.
 permissions: {}
@@ -151,3 +158,39 @@ jobs:
 
           echo "$count tracked file(s) under assets/ measured, $over over budget."
           [ "$over" -eq 0 ] || exit 1
+
+  links:
+    name: Check the links the page renders
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Read-only. The scheduled run reports rather than files anything, so no
+    # issues: write is needed here.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check every href and src on the rendered page
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          # The page is largely raw HTML, so a checker reading only [text](url)
+          # would miss the badges and the banner, which is most of what can
+          # actually rot. lychee reads href and src out of the HTML as well.
+          # The banner is a relative path: it is resolved against the file that
+          # names it and checked as a path on disk rather than fetched.
+          args: --config lychee.toml --no-progress README.md assets/README.md
+          # A red run blocks a branch, and nothing merges off the weekly run. A
+          # host that is down at 03:17 on a Sunday would otherwise leave the
+          # default branch red until somebody pushed again, which is a false
+          # alarm that teaches people to ignore the badge. The scheduled run
+          # still reports what it found in its own output; what it does not do is
+          # fail. The cost of that choice, stated rather than hidden: a link that
+          # rots between pushes is visible only to somebody who opens the weekly
+          # run.
+          fail: ${{ github.event_name != 'schedule' }}
+        env:
+          # Raises the GitHub API rate limit for the five github.com targets, so
+          # a 429 there stays rare rather than being tolerated more often.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

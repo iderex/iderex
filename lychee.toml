@@ -1,0 +1,27 @@
+# Configuration for the link check in .github/workflows/ci.yml.
+#
+# It lives in a committed file rather than in the workflow's argument list so
+# that what is accepted, retried and waited for is one readable thing next to
+# the tree it describes.
+
+# Accepted status codes. 429 is here because img.shields.io rate limits and both
+# github.com and buymeacoffee.com answer bot traffic with one under load: a link
+# that answers "too many requests" is a link that exists. 403 is deliberately not
+# accepted. It is what a host returns when it does not want this client, which is
+# a different statement from "the page is there", and accepting it everywhere
+# would hide a target that has started refusing everyone.
+accept = ["200..=299", "429"]
+
+# A transient failure gets three more chances with ten seconds between them
+# before it is reported, so a single slow response does not become a red run.
+max_retries = 3
+retry_wait_time = 10
+timeout = 30
+
+# Some CDNs refuse the default client string. This one names the check and where
+# it runs from, so an operator seeing it in a log can find out what it is.
+user_agent = "Mozilla/5.0 (compatible; iderex-profile-link-check; +https://github.com/iderex/iderex)"
+
+# Badge endpoints answer the same bytes to everyone, so there is nothing to gain
+# from pretending to be a browser beyond the string above.
+no_progress = true

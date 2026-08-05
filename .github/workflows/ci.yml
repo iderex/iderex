@@ -1,0 +1,196 @@
+name: ci
+
+on:
+  # Every branch and every PR: the guard is a cheap read-only scan and must cover
+  # any future branch too, not just main.
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  # Weekly, for the link check: a target can rot without anyone touching this
+  # repository, so the only trigger that catches it is one nothing here causes.
+  # The other two jobs run on this trigger as well. A grep over the tracked tree
+  # and a formatter check cost seconds once a week, and gating them off the
+  # trigger would put a condition on every job to save that.
+  schedule:
+    - cron: "17 3 * * 0"
+
+# Nothing in this workflow writes. Each job re-grants only what it reads with.
+permissions: {}
+
+# Cancel a superseded run on the same ref so a new push / PR update does not
+# queue behind an obsolete check.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unicode:
+    name: Reject Trojan Source Unicode
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the guard only greps the tracked tree, it never writes.
+    permissions:
+      contents: read
+
+    steps:
+      # The scan reads the index, so the whole tracked tree has to be present:
+      # no sparse-checkout and no path filter on this step.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes via git, so do not persist the GITHUB_TOKEN in .git/config.
+          persist-credentials: false
+      - name: Reject bidirectional / invisible Unicode control characters
+        run: |
+          # Trojan Source (CVE-2021-42574): bidirectional overrides/isolates/marks and
+          # zero-width characters can make a file render differently from how it reads,
+          # hiding content from a human reviewer. (*UTF) enables PCRE2 UTF-8 so \x{...}
+          # matches codepoints, not raw bytes; -I skips binary files. Em dashes, accents,
+          # and other benign non-ASCII in prose are not in the set and are out of scope
+          # for this scan. U+2060 (word joiner) is included as an invisible control with
+          # no legitimate use here. U+FEFF (BOM) is deliberately NOT listed: it is not
+          # part of the Trojan Source bidi-reordering attack and banning it outright
+          # would false-positive on any legitimately BOM-prefixed file.
+          pattern='(*UTF)[\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200E}\x{200F}\x{061C}\x{200B}-\x{200D}\x{2060}]'
+          # Scope: the whole tracked tree. The version this is copied from scans src,
+          # tools, *.ps1 and .github because it guards a source tree; here the tracked
+          # text is prose, the most-read file is the profile README, and -I already
+          # skips assets/banner.webp and any other binary.
+          # git grep: 0 = a match was found, 1 = clean, >=2 = scanner/tooling error. Capture
+          # the code (the `|| rc=$?` keeps `set -e` from aborting on the clean exit-1) and
+          # FAIL CLOSED on any error rather than mistaking a broken scanner for a clean tree.
+          rc=0
+          git grep -nIP "$pattern" -- . || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::Dangerous bidirectional/invisible Unicode found (Trojan Source, CVE-2021-42574). Remove these control characters."
+              exit 1
+              ;;
+            1)
+              echo "No bidirectional or invisible Unicode control characters found in the tracked tree."
+              ;;
+            *)
+              echo "::error::unicode guard scanner error (git grep exit $rc) -- failing closed instead of assuming the tree is clean."
+              exit 1
+              ;;
+          esac
+
+  format:
+    name: Check formatting against the pinned Prettier
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the check reads the tree and reports, it never writes a file back.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+      # The Prettier version is pinned once, in package.json and package-lock.json,
+      # and installed from there rather than named again in this file. A version
+      # written in two places is a version that can disagree with itself, and the
+      # run that reformatted the tree used the one in the lock file. `npm ci`
+      # installs the locked version exactly and fails if the lock and the manifest
+      # have drifted apart.
+      - run: npm ci
+      # `prettier --check .` covers Markdown, YAML and JSON, so this file is
+      # checked by the job it declares.
+      - run: npm run format:check
+
+  assets:
+    name: Keep tracked assets inside the size budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the step sizes blobs out of the index, it never writes one.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse a tracked asset over the budget
+        run: |
+          # The budget, in bytes, and the only place it is written. 600 KiB is the
+          # ceiling the banner re-encode was held to; it leaves the published banner
+          # (420,168 bytes) about a third of its size in headroom, which is enough
+          # for a re-crop or a second image without being enough for a file that
+          # makes the page slow to load. Raising it is a change to this line, which
+          # is a diff somebody reviews, rather than a number in a commit message.
+          budget=614400
+
+          # Sizes come from the index rather than from the working tree, so what is
+          # measured is the blob that would be published and not a file some later
+          # step happened to leave on disk.
+          list=$(mktemp)
+          if ! git ls-files -z -- assets > "$list"; then
+            echo "::error::could not list the tracked files under assets/ -- failing closed instead of reporting a budget nothing was measured against."
+            exit 1
+          fi
+
+          count=0
+          over=0
+          while IFS= read -r -d '' path; do
+            count=$((count + 1))
+            if ! size=$(git cat-file -s ":$path"); then
+              echo "::error::could not read the size of $path -- failing closed."
+              exit 1
+            fi
+            if [ "$size" -gt "$budget" ]; then
+              echo "::error file=$path::$path is $size bytes, over the budget of $budget bytes for tracked files under assets/."
+              over=$((over + 1))
+            else
+              echo "$path: $size bytes, within the budget of $budget bytes."
+            fi
+          done < "$list"
+
+          # A scan that measured nothing would otherwise report the same green as a
+          # scan that measured everything and found it small.
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no tracked files under assets/ -- the scan measured nothing, which is not the same as a tree inside its budget."
+            exit 1
+          fi
+
+          echo "$count tracked file(s) under assets/ measured, $over over budget."
+          [ "$over" -eq 0 ] || exit 1
+
+  links:
+    name: Check the links the page renders
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Read-only. The scheduled run reports rather than files anything, so no
+    # issues: write is needed here.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check every href and src on the rendered page
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          # The page is largely raw HTML, so a checker reading only [text](url)
+          # would miss the badges and the banner, which is most of what can
+          # actually rot. lychee reads href and src out of the HTML as well.
+          # The banner is a relative path: it is resolved against the file that
+          # names it and checked as a path on disk rather than fetched.
+          args: --config lychee.toml --no-progress README.md assets/README.md
+          # A red run blocks a branch, and nothing merges off the weekly run. A
+          # host that is down at 03:17 on a Sunday would otherwise leave the
+          # default branch red until somebody pushed again, which is a false
+          # alarm that teaches people to ignore the badge. The scheduled run
+          # still reports what it found in its own output; what it does not do is
+          # fail. The cost of that choice, stated rather than hidden: a link that
+          # rots between pushes is visible only to somebody who opens the weekly
+          # run.
+          fail: ${{ github.event_name != 'schedule' }}
+        env:
+          # Raises the GitHub API rate limit for the five github.com targets, so
+          # a 429 there stays rare rather than being tolerated more often.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

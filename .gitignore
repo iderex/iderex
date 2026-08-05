@@ -1,0 +1,17 @@
+# npm creates this directory and spells it one way, so it is left as it is.
+node_modules/
+
+# Agent instructions and agent-local configuration. Never tracked here.
+#
+# One bracket class per letter, because git glob matching does not fold case and
+# git has no case-insensitive ignore flag. Written in a single case, which
+# spellings a checkout covers is decided by its core.ignorecase rather than by
+# this file. The classes widen these patterns by case and by nothing else: every
+# position still matches exactly one character.
+[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd]
+.[Cc][Ll][Aa][Uu][Dd][Ee]/
+
+# Local working notes.
+*.[Ll][Oo][Cc][Aa][Ll]
+*.[Ll][Oo][Cc][Aa][Ll].*
+.[Nn][Oo][Tt][Ee][Ss]/

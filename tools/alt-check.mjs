@@ -95,6 +95,14 @@
 //     early, and the rest of the value is read as further attributes. HTML
 //     requires that character escaped, so this is a defect in the page rather
 //     than one the reader here can see past.
+//   - The attributes of a tag are stepped over one at a time, so a tag the walk
+//     cannot step stops it, and an alt written after that point reads as absent.
+//     An unquoted value holding an equals sign is the shape: src=...?a=b before
+//     alt="since 2017" reports "no alt attribute" and refuses nothing, where the
+//     same page with the value quoted is refused. HTML forbids an equals sign in
+//     an unquoted value, so this is a defect in the page as the entry above is,
+//     and unlike that one it points the narrow way. The run names what it read,
+//     which is what keeps the silence legible.
 //   - An <img> parked inside an HTML comment is read as a published image.
 //     Masking covers code spans and fenced blocks and not comments, so a tag
 //     nobody renders can still be refused for a repeat nobody hears. That is
@@ -275,13 +283,35 @@ function* links(masked) {
   }
 }
 
-// All three forms HTML allows for the value, because both verdicts below turn
-// on the quote character alone when only one form is read. Reading the double
-// quote by itself made alt='...' indistinguishable from an absent attribute,
-// which passed a real repeat as decorative and refused a named link as unnamed.
-// The unquoted branch stops at whitespace and at the characters HTML forbids
-// inside an unquoted value.
-const ALT_VALUE = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/i;
+// ONE ATTRIBUTE OF A TAG, read left to right from after the tag name rather
+// than searched for anywhere inside it. All three forms HTML allows for the
+// value are read, because a verdict turns on the quote character alone when
+// only one form is: reading the double quote by itself made alt='...'
+// indistinguishable from an absent attribute, which passed a real repeat as
+// decorative and refused a named link as unnamed.
+//
+// IT IS STICKY, AND THAT IS THE POINT. Searching the tag for alt= finds the
+// letters wherever they sit, and a query string is where they sit: an image
+// whose src ends &alt=x was read as alt="x" and its real value was never
+// compared, so a genuine repeat walked through. A sticky match has to begin at
+// the whitespace that separates two attributes, so a value is stepped over
+// whole and never entered.
+const ATTRIBUTE =
+  /\s+([^\s/>=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]*)))?/gy;
+const TAG_NAME = /^<[a-zA-Z][^\s/>]*/;
+
+// The alt an <img> carries, or null where it carries none. Absent and empty are
+// different pages and the report below says which one it read.
+function altOf(tag) {
+  ATTRIBUTE.lastIndex = TAG_NAME.exec(tag)[0].length;
+  let attribute;
+  while ((attribute = ATTRIBUTE.exec(tag)) !== null) {
+    if (attribute[1].toLowerCase() === "alt") {
+      return attribute[2] ?? attribute[3] ?? attribute[4] ?? "";
+    }
+  }
+  return null;
+}
 
 function readImages(text) {
   const masked = maskCode(text);
@@ -289,11 +319,10 @@ function readImages(text) {
 
   const images = [];
   for (const m of masked.matchAll(/<img\b[^>]*>/gi)) {
-    const alt = ALT_VALUE.exec(m[0]);
     images.push({
       start: m.index,
       line: lineOf(masked, m.index),
-      alt: alt ? (alt[1] ?? alt[2] ?? alt[3]) : null,
+      alt: altOf(m[0]),
       namesALink: false,
     });
   }

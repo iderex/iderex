@@ -1,5 +1,7 @@
 <div align="center">
-  <img src="assets/banner.webp" alt="" width="100%" />
+  <img src="assets/banner.webp" alt="Machine-generated illustration of three figures around a glowing padlock in a night sky above a castle" width="100%" />
+  <br />
+  <sub>This banner image is machine-generated.</sub>
 </div>
 
 <h1 align="center">Hi, I'm Iderex 👋</h1>

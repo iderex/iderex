@@ -60,6 +60,19 @@
 //   - A one-word alt matches a one-word token. alt="Docker" beside the word
 //     Docker in prose is refused, which is the rule applied consistently rather
 //     than an accident, but it is the likeliest false positive.
+//   - An alt value holding the quote character that delimits it ends the value
+//     early, and the rest of the value is read as further attributes. HTML
+//     requires that character escaped, so this is a defect in the page rather
+//     than one the reader here can see past.
+//   - An <img> parked inside an HTML comment is read as a published image.
+//     Masking covers code spans and fenced blocks and not comments, so a tag
+//     nobody renders can still be refused for a repeat nobody hears. That is
+//     the wide direction and the repair is to delete the comment.
+//   - An <img> outside a link with no alt attribute at all is refused by
+//     neither rule, and it is a real defect under WCAG 2.2 SC 1.1.1. The two
+//     rules here are the two this repository asked for, and a missing alt is
+//     not one of them; the run says "no alt attribute" where it meets one, so
+//     the silence is at least legible.
 //   - Anchors are matched non-greedily and are assumed not to nest. A nested
 //     <a> would be read as ending at the inner closing tag.
 //   - Only the files named on the command line are read. Nothing here discovers
@@ -111,18 +124,26 @@ function proseAround(lines, line) {
   );
 }
 
+// All three forms HTML allows for the value, because both verdicts below turn
+// on the quote character alone when only one form is read. Reading the double
+// quote by itself made alt='...' indistinguishable from an absent attribute,
+// which passed a real repeat as decorative and refused a named link as unnamed.
+// The unquoted branch stops at whitespace and at the characters HTML forbids
+// inside an unquoted value.
+const ALT_VALUE = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/i;
+
 function readImages(text) {
   const masked = maskCode(text);
   const lines = masked.split("\n");
 
   const images = [];
   for (const m of masked.matchAll(/<img\b[^>]*>/gi)) {
-    const alt = /\balt\s*=\s*"([^"]*)"/i.exec(m[0]);
+    const alt = ALT_VALUE.exec(m[0]);
     images.push({
       tag: m[0],
       start: m.index,
       line: lineOf(masked, m.index),
-      alt: alt ? alt[1] : null,
+      alt: alt ? (alt[1] ?? alt[2] ?? alt[3]) : null,
       namesALink: false,
     });
   }
@@ -194,7 +215,14 @@ function main(argv) {
       }
 
       if (alt === "") {
-        console.log(`${where}: alt is empty, decorative, nothing to compare`);
+        // Absent and empty are different pages. Neither is refused here, and
+        // saying which one was read is what keeps the second case from looking
+        // like a decision somebody made.
+        console.log(
+          image.alt === null
+            ? `${where}: no alt attribute, refused by neither rule, see LIMITS`
+            : `${where}: alt is empty, decorative, nothing to compare`,
+        );
         continue;
       }
 

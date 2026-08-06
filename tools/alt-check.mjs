@@ -14,12 +14,19 @@
 //
 // THE TWO RULES
 //
-// LINK-NAME. An <img> that is the only content of an <a> carries the link's
-// accessible name. If its alt is missing or empty, the link has no name at all,
-// which fails WCAG 2.2 SC 2.4.4 and 4.1.2. This is the trap: emptying an alt to
-// silence the other rule can produce a worse page than the repeat it removed,
-// so the two rules are deliberately opposed and an image cannot satisfy one by
-// breaking the other.
+// LINK-NAME. An <a> that writes no text of its own is named by the alt of the
+// images inside it. If none of them carries one, the link has no accessible
+// name at all, which fails WCAG 2.2 SC 2.4.4 and 4.1.2. This is the trap:
+// emptying an alt to silence the other rule can produce a worse page than the
+// repeat it removed, so the two rules are deliberately opposed and an image
+// cannot satisfy one by breaking the other.
+//
+// The rule reads the anchor's text and not the image's position in it, which is
+// a widening. It was written as "the image is the only content of the anchor",
+// and that shape is one line of markup away from silence: wrap the image in
+// <picture> for a dark-mode badge, or leave a <br /> beside it, and the image
+// stops being the only content while the link stays exactly as unnamed. Both
+// were planted against the earlier reading and both passed it.
 //
 // ALT-REPEATS-PROSE. An <img> that is not carrying a link name, whose alt
 // reproduces text already written near it, tells a screen reader nothing it is
@@ -75,6 +82,17 @@
 //     the silence is at least legible.
 //   - Anchors are matched non-greedily and are assumed not to nest. A nested
 //     <a> would be read as ending at the inner closing tag.
+//   - An anchor is read as naming itself when stripping its tags leaves any
+//     letter or digit, so a link whose visible text is one character passes
+//     LINK-NAME with a name a reader might still call useless. That is SC 2.4.4
+//     read narrowly, and no rule here judges whether a name is a good one.
+//     Text that normalises to nothing, an emoji on its own, leaves the anchor
+//     text-less and the image is required to name it, which is the safe
+//     direction of the same reading.
+//   - aria-label on the anchor is not read, so a link named that way with an
+//     empty-alt image inside it is refused. That is deliberate: whether the
+//     rule should exempt it is the open half of #10 and it is a decision rather
+//     than an oversight.
 //   - Only the files named on the command line are read. Nothing here discovers
 //     a page that was added and not listed.
 
@@ -148,14 +166,25 @@ function readImages(text) {
     });
   }
 
-  // An image is carrying a link name when it is the only thing inside the <a>.
+  // An image is carrying a link name when the <a> around it announces nothing
+  // else. Stripping the tags leaves the anchor's own text, so a wrapper element
+  // and a <br /> fall out with the markup rather than taking the rule off the
+  // link.
   for (const a of masked.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)) {
-    if (!/^<img\b[^>]*>$/i.test(a[1].trim())) continue;
-    const inner = a.index + a[0].indexOf(a[1]);
-    for (const image of images) {
-      if (image.start >= inner && image.start < inner + a[1].length) {
-        image.namesALink = true;
-      }
+    const from = a.index + a[0].indexOf(a[1]);
+    const inside = images.filter(
+      (image) => image.start >= from && image.start < from + a[1].length,
+    );
+    if (inside.length === 0) continue;
+    // Text of its own names the link whatever its images carry.
+    if (normalise(a[1].replace(/<[^>]*>/g, " ")) !== "") continue;
+    // Where an image already names the link, only that image is exempt from the
+    // repeat rule and an empty-alt sibling is decorative beside a named link.
+    // Where none of them names it the first carries the refusal, so one unnamed
+    // link is reported once rather than once per image.
+    const named = inside.filter((image) => (image.alt ?? "").trim() !== "");
+    for (const image of named.length > 0 ? named : inside.slice(0, 1)) {
+      image.namesALink = true;
     }
   }
 
@@ -206,7 +235,7 @@ function main(argv) {
         if (alt === "") {
           refused++;
           console.log(
-            `::error file=${file},line=${image.line}::${where}: this image is the only content of a link, and its alt is ${image.alt === null ? "missing" : "empty"}, so the link has no accessible name (WCAG 2.2 SC 2.4.4, 4.1.2). Give it the name the link should announce.`,
+            `::error file=${file},line=${image.line}::${where}: the link around this image writes no text of its own, and the image's alt is ${image.alt === null ? "missing" : "empty"}, so the link has no accessible name (WCAG 2.2 SC 2.4.4, 4.1.2). Give it the name the link should announce.`,
           );
         } else {
           console.log(`${where}: alt="${alt}" names a link, not compared`);

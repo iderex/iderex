@@ -14,7 +14,7 @@
 //
 // THE TWO RULES
 //
-// LINK-NAME. An <a> that writes no text of its own is named by the alt of the
+// LINK-NAME. A link that writes no text of its own is named by the alt of the
 // images inside it. If none of them carries one, the link has no accessible
 // name at all, which fails WCAG 2.2 SC 2.4.4 and 4.1.2. This is the trap:
 // emptying an alt to silence the other rule can produce a worse page than the
@@ -28,7 +28,18 @@
 // stops being the only content while the link stays exactly as unnamed. Both
 // were planted against the earlier reading and both passed it.
 //
-// ALT-REPEATS-PROSE. An <img> that is not carrying a link name, whose alt
+// BOTH SPELLINGS OF AN IMAGE AND OF A LINK ARE READ. These pages are Markdown
+// carrying raw HTML, so every image and every link here can be written twice
+// over, and a rule that reads <img> and <a> alone is silent on the half a
+// profile page is conventionally written in: ![alt](src) for the image and
+// [![alt](src)](href) for the badge. Three shapes were planted against the
+// reading that saw HTML only - a Markdown image repeating prose beside it, a
+// Markdown link whose only content is a Markdown image with an empty alt, and
+// the same link around an HTML <img> with an empty alt - and all three passed
+// it silently. Neither rule is about a syntax; both are about what a screen
+// reader announces.
+//
+// ALT-REPEATS-PROSE. An image that is not carrying a link name, whose alt
 // reproduces text already written near it, tells a screen reader nothing it is
 // not about to hear anyway. Under WCAG 2.2 SC 1.1.1 the alternative has to
 // serve an equivalent purpose; a duplicate serves none, and alt="" is what
@@ -81,7 +92,19 @@
 //     not one of them; the run says "no alt attribute" where it meets one, so
 //     the silence is at least legible.
 //   - Anchors are matched non-greedily and are assumed not to nest. A nested
-//     <a> would be read as ending at the inner closing tag.
+//     <a> would be read as ending at the inner closing tag, and a Markdown link
+//     is read one level of image nesting deep, which is the badge shape, and no
+//     further.
+//   - Every Markdown image form is read off the ![alt] that opens it, so the
+//     inline, full, collapsed and shortcut forms all yield their alt. The cost
+//     is that a bracketed phrase in prose written after an exclamation mark is
+//     read as an image. That is the wide direction: it can only add a report
+//     about text that already looks like an image on the page.
+//   - A Markdown link's destination is not prose and is removed before the
+//     comparison, because a URL is not text the page announces. Deleting that
+//     one line refuses alt="SQLite" for a nearby [handbook](.../SQLite/notes)
+//     whose visible text says nothing of the sort, which is what the line is
+//     for.
 //   - An anchor is read as naming itself when stripping its tags leaves any
 //     letter or digit, so a link whose visible text is one character passes
 //     LINK-NAME with a name a reader might still call useless. That is SC 2.4.4
@@ -127,9 +150,23 @@ function lineOf(text, index) {
   return line;
 }
 
-// The prose an image is compared against: the window around it with every <img>
-// removed first, so an alt can match neither itself nor another badge's alt,
-// and then with the remaining markup stripped.
+// A Markdown image, its alt in group 1 and the destination or reference that
+// follows it in group 2. Inline ![alt](src), full ![alt][ref], collapsed
+// ![alt][] and shortcut ![alt] all open the same way, so one expression carries
+// every form and the tail is optional.
+const MD_IMAGE = /!\[([^\]]*)\](?:\([^()]*\)|\[[^\]]*\])?/g;
+
+// A Markdown link, its content in group 1. The inner alternation admits one
+// level of image nesting, which is how a badge is written: [![alt](src)](href).
+// A destination or a reference is required, so a bracketed phrase alone is text.
+const MD_LINK = /\[((?:[^[\]]|!\[[^\]]*\])*)\](?:\([^()]*\)|\[[^\]]*\])/dg;
+
+const HTML_ANCHOR = /<a\b[^>]*>([\s\S]*?)<\/a>/dgi;
+
+// The prose an image is compared against: the window around it with every image
+// removed first, in both spellings, so an alt can match neither itself nor
+// another badge's alt, then with a Markdown link's destination removed because a
+// URL is not text the page announces, then with the remaining markup stripped.
 function proseAround(lines, line) {
   const from = Math.max(0, line - 1 - WINDOW);
   const to = Math.min(lines.length, line + WINDOW);
@@ -138,8 +175,30 @@ function proseAround(lines, line) {
       .slice(from, to)
       .join("\n")
       .replace(/<img\b[^>]*>/gi, " ")
+      .replace(MD_IMAGE, " ")
+      .replace(/\]\([^()]*\)/g, "] ")
       .replace(/<[^>]*>/g, " "),
   );
+}
+
+// What a link announces on its own: its images removed in both spellings and
+// whatever markup is left removed, so a wrapper element, a <br /> and a badge
+// all fall out and only what a reader would hear remains.
+function linkText(content) {
+  return normalise(content.replace(MD_IMAGE, " ").replace(/<[^>]*>/g, " "));
+}
+
+// Both spellings of a link, each as the span its content occupies. The offsets
+// are read off the match's own group indices, which is exact, rather than by
+// searching the match for a copy of its content. No page here is known to
+// separate the two readings; one mechanism serving both spellings is the reason
+// to prefer it.
+function* links(masked) {
+  for (const pattern of [HTML_ANCHOR, MD_LINK]) {
+    for (const m of masked.matchAll(pattern)) {
+      yield { from: m.indices[1][0], to: m.indices[1][1], content: m[1] };
+    }
+  }
 }
 
 // All three forms HTML allows for the value, because both verdicts below turn
@@ -158,26 +217,36 @@ function readImages(text) {
   for (const m of masked.matchAll(/<img\b[^>]*>/gi)) {
     const alt = ALT_VALUE.exec(m[0]);
     images.push({
-      tag: m[0],
       start: m.index,
       line: lineOf(masked, m.index),
       alt: alt ? (alt[1] ?? alt[2] ?? alt[3]) : null,
       namesALink: false,
     });
   }
+  // Markdown always writes an alt, empty or not, so an absent one is a state
+  // only the HTML spelling has.
+  for (const m of masked.matchAll(MD_IMAGE)) {
+    images.push({
+      start: m.index,
+      line: lineOf(masked, m.index),
+      alt: m[1],
+      namesALink: false,
+    });
+  }
+  // Document order, so the report reads down the page and so the image that
+  // carries an unnamed link's refusal below is the first one in it.
+  images.sort((a, b) => a.start - b.start);
 
-  // An image is carrying a link name when the <a> around it announces nothing
-  // else. Stripping the tags leaves the anchor's own text, so a wrapper element
-  // and a <br /> fall out with the markup rather than taking the rule off the
-  // link.
-  for (const a of masked.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)) {
-    const from = a.index + a[0].indexOf(a[1]);
+  // An image is carrying a link name when the link around it announces nothing
+  // else. Stripping the markup leaves the link's own text, so a wrapper element
+  // and a <br /> fall out rather than taking the rule off the link.
+  for (const link of links(masked)) {
     const inside = images.filter(
-      (image) => image.start >= from && image.start < from + a[1].length,
+      (image) => image.start >= link.from && image.start < link.to,
     );
     if (inside.length === 0) continue;
     // Text of its own names the link whatever its images carry.
-    if (normalise(a[1].replace(/<[^>]*>/g, " ")) !== "") continue;
+    if (linkText(link.content) !== "") continue;
     // Where an image already names the link, only that image is exempt from the
     // repeat rule and an empty-alt sibling is decorative beside a named link.
     // Where none of them names it the first carries the refusal, so one unnamed
@@ -194,7 +263,15 @@ function readImages(text) {
 function reportGaps(files) {
   for (const file of files) {
     const { images, lines } = readImages(readFileSync(file, "utf8"));
-    const prose = lines.map((l) => normalise(l.replace(/<[^>]*>/g, " ")));
+    const prose = lines.map((l) =>
+      normalise(
+        l
+          .replace(/<img\b[^>]*>/gi, " ")
+          .replace(MD_IMAGE, " ")
+          .replace(/\]\([^()]*\)/g, "] ")
+          .replace(/<[^>]*>/g, " "),
+      ),
+    );
     for (const image of images) {
       let gap = null;
       for (let j = image.line - 2; j >= 0; j--) {

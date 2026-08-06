@@ -140,6 +140,11 @@
 //     empty-alt image inside it is refused. That is deliberate: whether the
 //     rule should exempt it is the open half of #10 and it is a decision rather
 //     than an oversight.
+//   - A Markdown destination is read one level of parentheses deep. Two levels,
+//     which CommonMark allows and which nothing on these pages writes, put the
+//     link back out of reach of both rules and put its destination back into the
+//     prose the repeat rule reads. That is the same pair of errors one level
+//     down, and answering it properly is a parser rather than another level.
 //   - Only the files named on the command line are read. Nothing here discovers
 //     a page that was added and not listed.
 
@@ -174,16 +179,46 @@ function lineOf(text, index) {
   return line;
 }
 
-// A Markdown image, its alt in group 1 and the destination or reference that
-// follows it in group 2. Inline ![alt](src), full ![alt][ref], collapsed
-// ![alt][] and shortcut ![alt] all open the same way, so one expression carries
-// every form and the tail is optional.
-const MD_IMAGE = /!\[([^\]]*)\](?:\([^()]*\)|\[[^\]]*\])?/g;
+// The tail a Markdown link or image carries: a destination in parentheses or a
+// reference in brackets.
+//
+// A DESTINATION MAY HOLD PARENTHESES, and reading it as "an open paren, then
+// anything that is not a paren, then a close paren" gets that wrong in both
+// directions at once. Wikipedia writes an article that way and so does anything
+// disambiguated: (https://en.wikipedia.org/wiki/C++_(programming_language)).
+// The inner open paren ends the character class, the tail does not match, and
+// the link around the image is never seen - so an empty-alt badge inside it is
+// read as a decorative image sitting in the page rather than as a link with no
+// accessible name, which is the one shape the link-name rule exists for. At the
+// same time the destination survives into the prose the repeat rule compares
+// against, and its words then refuse the badges beside it: one such link near
+// the toolbox row refused alt="C", alt="C++" and alt="C#" for letters nobody
+// sees. Both were planted, both reproduced, and the same link with the
+// parentheses taken out of its destination is refused once, correctly.
+//
+// One level of nesting is admitted, which is that shape. CommonMark allows any
+// depth so long as the parentheses balance; deeper than one is not written on a
+// page like this one and is left where it was rather than answered with a
+// parser.
+const DEST = String.raw`(?:\((?:[^()]|\([^()]*\))*\)|\[[^\]]*\])`;
+
+// A Markdown image, its alt in group 1. Inline ![alt](src), full ![alt][ref],
+// collapsed ![alt][] and shortcut ![alt] all open the same way, so one
+// expression carries every form and the tail is optional.
+const MD_IMAGE = new RegExp(String.raw`!\[([^\]]*)\]` + DEST + "?", "g");
 
 // A Markdown link, its content in group 1. The inner alternation admits one
 // level of image nesting, which is how a badge is written: [![alt](src)](href).
 // A destination or a reference is required, so a bracketed phrase alone is text.
-const MD_LINK = /\[((?:[^[\]]|!\[[^\]]*\])*)\](?:\([^()]*\)|\[[^\]]*\])/dg;
+const MD_LINK = new RegExp(
+  String.raw`\[((?:[^[\]]|!\[[^\]]*\])*)\]` + DEST,
+  "dg",
+);
+
+// A Markdown link's destination alone, for removal from prose. It is the
+// parenthesised branch of DEST behind the bracket that closes the link text, so
+// the two readings cannot drift apart.
+const MD_DESTINATION = new RegExp(String.raw`\]\((?:[^()]|\([^()]*\))*\)`, "g");
 
 const HTML_ANCHOR = /<a\b[^>]*>([\s\S]*?)<\/a>/dgi;
 
@@ -200,7 +235,7 @@ function proseAround(lines, line) {
       .join("\n")
       .replace(/<img\b[^>]*>/gi, " ")
       .replace(MD_IMAGE, " ")
-      .replace(/\]\([^()]*\)/g, "] ")
+      .replace(MD_DESTINATION, "] ")
       .replace(/<[^>]*>/g, " "),
   );
 }
@@ -307,7 +342,7 @@ function reportGaps(files) {
         l
           .replace(/<img\b[^>]*>/gi, " ")
           .replace(MD_IMAGE, " ")
-          .replace(/\]\([^()]*\)/g, "] ")
+          .replace(MD_DESTINATION, "] ")
           .replace(/<[^>]*>/g, " "),
       ),
     );

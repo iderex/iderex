@@ -28,6 +28,19 @@
 // stops being the only content while the link stays exactly as unnamed. Both
 // were planted against the earlier reading and both passed it.
 //
+// WHAT AN ANCHOR ANNOUNCES IS NOT WHAT ITS SOURCE SPELLS. Reading the anchor's
+// text left two ways for the source to write letters a reader never hears: a
+// character reference, and an HTML comment holding a > that the tag stripper
+// ends at. &nbsp; between two badges is the ordinary spelling of a spacer on a
+// page like this one, and it moved this check in both directions at once. An
+// empty-alt image beside one was passed, because the anchor looked like it
+// announced the word "nbsp" and so named itself; and the sponsor badge, alt
+// untouched, was refused the moment a spacer was put beside it, because it lost
+// the exemption that images carrying a link name have from the repeat rule. Both
+// were planted and both reproduced. Neither is decoded now; both are removed,
+// which is the direction that leaves an anchor text-less and its images owing
+// the name.
+//
 // BOTH SPELLINGS OF AN IMAGE AND OF A LINK ARE READ. These pages are Markdown
 // carrying raw HTML, so every image and every link here can be written twice
 // over, and a rule that reads <img> and <a> alone is silent on the half a
@@ -86,6 +99,17 @@
 //     Masking covers code spans and fenced blocks and not comments, so a tag
 //     nobody renders can still be refused for a repeat nobody hears. That is
 //     the wide direction and the repair is to delete the comment.
+//   - A character reference is removed from an anchor's content and not
+//     decoded, so an anchor whose visible text is written entirely as
+//     references reads as text-less and its images are required to name it.
+//     That is the safe direction of the same reading the emoji case takes, and
+//     the cost is a refusal a reader resolves by writing the character.
+//   - The prose the repeat rule compares against is NOT put through either
+//     removal, and that asymmetry is chosen. A comment near an image is still
+//     read as prose, which is the entry above but one, and a reference in prose
+//     is still read as its letters. What the repeat rule compares against
+//     decides what the page is refused for, which is a separate question from
+//     what an anchor announces, and this is only the second.
 //   - An <img> outside a link with no alt attribute at all is refused by
 //     neither rule, and it is a real defect under WCAG 2.2 SC 1.1.1. The two
 //     rules here are the two this repository asked for, and a missing alt is
@@ -181,11 +205,26 @@ function proseAround(lines, line) {
   );
 }
 
-// What a link announces on its own: its images removed in both spellings and
-// whatever markup is left removed, so a wrapper element, a <br /> and a badge
-// all fall out and only what a reader would hear remains.
+// An HTML comment renders nothing, and a character reference in the source is
+// not the character it stands for. Both are removed from an anchor's content
+// before it is read, because both otherwise leave letters behind that no reader
+// ever hears: &nbsp; leaves the four letters n b s p, and a comment holding a >
+// leaves whatever follows it, since the tag stripper below ends at that >.
+const COMMENT = /<!--[\s\S]*?-->/g;
+const CHAR_REF = /&(?:#\d+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g;
+
+// What a link announces on its own: its comments and its images removed in both
+// spellings, whatever markup is left removed, and its character references
+// removed, so a wrapper element, a <br />, a badge and a spacer all fall out and
+// only what a reader would hear remains.
 function linkText(content) {
-  return normalise(content.replace(MD_IMAGE, " ").replace(/<[^>]*>/g, " "));
+  return normalise(
+    content
+      .replace(COMMENT, " ")
+      .replace(MD_IMAGE, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(CHAR_REF, " "),
+  );
 }
 
 // Both spellings of a link, each as the span its content occupies. The offsets

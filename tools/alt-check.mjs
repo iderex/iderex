@@ -107,6 +107,11 @@
 //     Masking covers code spans and fenced blocks and not comments, so a tag
 //     nobody renders can still be refused for a repeat nobody hears. That is
 //     the wide direction and the repair is to delete the comment.
+//   - A fence that is never closed masks nothing. Markdown runs an unclosed
+//     fence to the end of the document; the expression here needs a closing
+//     line and finds none, so a tag below the opening line is read as
+//     published. Same wide direction as the entry above, and the repair is to
+//     close the fence.
 //   - A character reference is removed from an anchor's content and not
 //     decoded, so an anchor whose visible text is written entirely as
 //     references reads as text-less and its images are required to name it.
@@ -165,9 +170,39 @@ const WINDOW = 12;
 // the profile README, and reading that as an image would refuse a sentence.
 // Masking preserves every byte offset and every newline, so line numbers and
 // the anchor scan below are unaffected.
+//
+// BOTH FENCE CHARACTERS ARE MASKED. Markdown opens a fence with backticks or
+// with tildes, and reading only the backtick spelling read a documented tag in a
+// tilde fence as a published image and refused it.
+//
+// ONE EXPRESSION SCANS FOR EITHER, and it is not the same thing as two passes.
+// A tilde fence is what somebody reaches for precisely when the block holds
+// backticks, so the backtick line inside it is the one thing that is likelier
+// here than anywhere else. A backtick pass run first opens a fence on that line
+// and closes it on the next backtick line further down the page, blanking
+// whatever sits between them - a published <img> among it - and taking the
+// tilde fence's own closing line with it, so the second pass then finds nothing
+// to close. Both rules go silent on a real image, which is the direction that
+// hides a defect rather than inventing one. Scanning once for either character
+// and requiring the fence to close in the character that opened it reads the
+// same page correctly. Both readings were run against a page carrying that
+// shape: the two-pass one reported it clean and exited 0, and the one written
+// here refused the image the fence had swallowed.
+//
+// AN INDENTED CODE BLOCK IS NOT MASKED, and that is a choice rather than the
+// same omission. Four spaces open a code block in Markdown and they also indent
+// nested HTML, and this page writes both: the sponsor badge sits four spaces in,
+// inside a <div>, and it is a published image. Masking by indentation would
+// blank it and take the link-name rule off the one image that rule was written
+// for. Telling the two apart is Markdown's block structure rather than a line's
+// leading spaces, which is a parser. So a tag documented in an indented block is
+// read as published and can be refused for a repeat nobody hears, which is the
+// wide direction, and the repair is a fence.
 function maskCode(text) {
   const blank = (m) => m.replace(/[^\n]/g, " ");
-  return text.replace(/^```[\s\S]*?^```/gm, blank).replace(/`[^`\n]*`/g, blank);
+  return text
+    .replace(/^(```|~~~)[\s\S]*?^\1/gm, blank)
+    .replace(/`[^`\n]*`/g, blank);
 }
 
 // Lowercase, then reduce everything that is not a letter or a number to a single

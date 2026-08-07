@@ -1,11 +1,12 @@
 # assets
 
-`banner.webp` is the image across the top of the profile README, which references
-it as `assets/banner.webp` on line 2. The published file is 2172 by 724 pixels
-and is encoded as lossy WebP.
+This folder holds no image at present. The profile page was carrying a
+machine-generated banner, and it now opens with the name and one paragraph
+instead.
 
-Two things have to stay true if it is replaced. The `<img src=...>` in
-`../README.md` names the file, so a different extension is an edit there as well.
-And the new file has to fit inside the size ceiling the `assets` job in
-`.github/workflows/ci.yml` enforces; that job prints the file, its size and the
-limit when it refuses one, so the number lives there rather than here.
+The size budget in the `assets` job of `.github/workflows/ci.yml` still stands
+and still runs, so anything added here later is measured before it is
+published. That job refuses an empty folder as well, on the ground that a scan
+which measured nothing reports the same green as one that measured everything
+and found it small. This file is what it measures while the folder holds no
+image.

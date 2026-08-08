@@ -63,14 +63,49 @@
 // naming a link after the sentence that introduces it is correct rather than
 // redundant.
 //
+// THE SELF-TEST, AND WHY A PAGE WITH NO IMAGE MAY PASS
+//
+// This check first refused any run that found no image, on the ground that such
+// a run prints the same green as one that read every image and found it sound.
+// The ground is right. The test for it was a proxy, and the proxy could not
+// tell a page that publishes no image from a reader that had stopped seeing
+// them, so it answered both with the same refusal.
+//
+// The pages then stopped publishing images. Under the proxy this check could
+// never have gone green on them, however sound it was, which is a guard
+// refusing the tree for a property the tree does not have.
+//
+// What the proxy reached for is a run that proves it can still read. FIXTURES
+// below is that proof: pages written into this file, each carrying a shape that
+// walked through an earlier reading in silence, judged through the same
+// classify() the published pages are judged by. It runs before any page is
+// read, on every invocation, and it is not behind a flag, because a proof
+// somebody can skip is one nobody executes.
+//
+// So a page with no image passes and says exactly what it measured. What that
+// verdict claims is that the rules still work and the pages publish nothing for
+// them to refuse. It does not claim the pages were examined and found sound,
+// and the wording of the run says so rather than leaving a reader to infer it.
+//
 // THE WINDOW
 //
 // "Near it" is WINDOW source lines either side of the line the tag opens on.
-// The number is chosen, not inherited. Every image on the tracked pages reaches
-// the nearest prose line above it at 11 lines or less; the widest is the last
-// toolbox badge reaching its own heading. Measured with:
+// The number is chosen, not inherited. It was measured on the page as it then
+// stood, which carried a banner and twelve badges: every image reached the
+// nearest prose line above it at 11 lines or less, the widest being the last
+// badge of the toolbox row reaching its own heading.
+//
+// THAT PAGE NO LONGER EXISTS. The banner and all twelve badges were removed
+// before this check landed, so the measurement behind the number is history
+// rather than something a reader can re-run here. What re-runs it, against
+// whatever the pages carry when it is asked:
 //
 //     node tools/alt-check.mjs --gaps README.md assets/README.md
+//
+// On pages with no image that prints nothing, and printing nothing is the
+// honest output rather than a number worth quoting. The number below is
+// therefore inherited from a page that is gone, and the next image published
+// here is the occasion to take the measurement again.
 //
 // Twelve is that measurement with a line to spare, and it errs WIDE knowingly:
 // a repeat one line outside the window is still a repeat, whereas the cost of
@@ -150,9 +185,18 @@
 //     text-less and the image is required to name it, which is the safe
 //     direction of the same reading.
 //   - aria-label on the anchor is not read, so a link named that way with an
-//     empty-alt image inside it is refused. That is deliberate: whether the
-//     rule should exempt it is the open half of #10 and it is a decision rather
-//     than an oversight.
+//     empty-alt image inside it is refused. It is the wide direction and it is
+//     deliberate: the rule refuses a page it could have passed, rather than
+//     passing one it should have refused. Whether it should exempt an
+//     aria-label was a question the page raised while it still carried badges;
+//     the page carries none now, so nothing here answers it and the entry
+//     stands as a limit rather than as a decision somebody owes.
+//   - No image on the pages is not the same as no rule. The two rules are
+//     proven against the built-in fixtures on every run, and a run that finds
+//     no image says so and passes. What that verdict does NOT say is that the
+//     pages were examined and found sound, because there was nothing to
+//     examine; it says the reader works and the pages publish nothing for it
+//     to read.
 //   - A Markdown destination is read one level of parentheses deep. Two levels,
 //     which CommonMark allows and which nothing on these pages writes, put the
 //     link back out of reach of both rules and put its destination back into the
@@ -166,10 +210,10 @@ import { readFileSync } from "node:fs";
 const WINDOW = 12;
 
 // A code span or a fenced block can hold the literal text of a tag without
-// publishing an image: assets/README.md line 7 documents the <img src=...> in
-// the profile README, and reading that as an image would refuse a sentence.
-// Masking preserves every byte offset and every newline, so line numbers and
-// the anchor scan below are unaffected.
+// publishing an image. assets/README.md documented the profile banner's
+// <img src=...> that way while the banner existed, and reading that sentence as
+// an image would have refused it. Masking preserves every byte offset and every
+// newline, so line numbers and the anchor scan below are unaffected.
 //
 // BOTH FENCE CHARACTERS ARE MASKED. Markdown opens a fence with backticks or
 // with tildes, and reading only the backtick spelling read a documented tag in a
@@ -191,10 +235,13 @@ const WINDOW = 12;
 //
 // AN INDENTED CODE BLOCK IS NOT MASKED, and that is a choice rather than the
 // same omission. Four spaces open a code block in Markdown and they also indent
-// nested HTML, and this page writes both: the sponsor badge sits four spaces in,
-// inside a <div>, and it is a published image. Masking by indentation would
-// blank it and take the link-name rule off the one image that rule was written
-// for. Telling the two apart is Markdown's block structure rather than a line's
+// nested HTML, and the page written when this was decided wrote both: the
+// sponsor badge sat four spaces in, inside a <div>, and it was a published
+// image. Masking by indentation would have blanked it and taken the link-name
+// rule off the one image that rule was written for. That badge is gone with the
+// rest, and the reasoning is kept because the shape returns with the next
+// indented block of HTML rather than with that particular badge.
+// Telling the two apart is Markdown's block structure rather than a line's
 // leading spaces, which is a parser. So a tag documented in an indented block is
 // read as published and can be refused for a repeat nobody hears, which is the
 // wide direction, and the repair is a fence.
@@ -398,6 +445,40 @@ function readImages(text) {
   return { images, lines };
 }
 
+// The one place either rule decides. The report below reads it and so does the
+// self-test, so a fixture cannot pass against a reading the published pages are
+// not judged by, and a fixture list cannot drift into a second implementation
+// of the rules it claims to pin.
+//
+// The names are the vocabulary the self-test is written in. Two of them are
+// refusals and the rest say which silence was read, because "no alt attribute"
+// and "alt is empty" are different pages and a fixture that could not tell them
+// apart would pass a check that had stopped telling them apart too.
+function classify(image, lines) {
+  const alt = image.alt === null ? "" : image.alt.trim();
+
+  if (image.namesALink) return alt === "" ? "unnamed-link" : "names-a-link";
+  if (alt === "") return image.alt === null ? "no-alt" : "decorative";
+
+  const needle = normalise(alt);
+  if (needle === "") return "no-words";
+
+  return ` ${proseAround(lines, image.line)} `.includes(` ${needle} `)
+    ? "repeat"
+    : "described";
+}
+
+const REFUSALS = new Set(["repeat", "unnamed-link"]);
+
+// What the check says about one page, as a line per image in document order.
+// This is the whole verdict: the self-test compares these strings and nothing
+// else, so an expectation is a claim about what the rules read rather than
+// about how a message is worded.
+function verdict(text) {
+  const { images, lines } = readImages(text);
+  return images.map((image) => `${image.line}:${classify(image, lines)}`);
+}
+
 function reportGaps(files) {
   for (const file of files) {
     const { images, lines } = readImages(readFileSync(file, "utf8"));
@@ -423,12 +504,228 @@ function reportGaps(files) {
   }
 }
 
+// THE SELF-TEST
+//
+// Every page in this list is judged by classify() through verdict(), which is
+// the same path the published pages take. A fixture is a page written as lines
+// so its line numbers are countable by eye, and an expectation is the verdict
+// the rules must read off it.
+//
+// Each one is a reading that was wrong first. The entries were planted against
+// the reading that preceded them, and each passed that reading silently before
+// it was repaired; the list exists so that a repair cannot be undone in silence
+// either. Adding a fixture is cheaper than rediscovering the shape.
+const FIXTURES = [
+  {
+    name: "an alt reproducing the sentence above it is a repeat",
+    page: [
+      "A padlock over a castle at night.",
+      "",
+      '<img src="a.webp" alt="A padlock over a castle at night" />',
+    ],
+    expect: ["3:repeat"],
+  },
+  {
+    name: "an alt describing the image rather than the page is not",
+    page: [
+      "A padlock over a castle at night.",
+      "",
+      '<img src="a.webp" alt="Three figures beneath a glowing lock" />',
+    ],
+    expect: ["3:described"],
+  },
+  {
+    name: "an empty alt inside a link that writes no text leaves it unnamed",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/"><img src="b.webp" alt="" /></a>',
+    ],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a <picture> wrapper does not take the link-name rule off",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/"><picture><img src="b.webp" alt="" /></picture></a>',
+    ],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a <br /> beside the image does not either",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/"><img src="b.webp" alt="" /><br /></a>',
+    ],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a character reference is not text a link announces",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/">&nbsp;<img src="b.webp" alt="" /></a>',
+    ],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a comment holding a greater-than sign is not text either",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/"><!-- spacer > here --><img src="b.webp" alt="" /></a>',
+    ],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a link that writes its own text is named whatever the image carries",
+    page: [
+      "Support the work.",
+      "",
+      '<a href="https://example.invalid/">Buy me a coffee <img src="b.webp" alt="" /></a>',
+    ],
+    expect: ["3:decorative"],
+  },
+  {
+    name: "an alt= inside a src query string is not the alt attribute",
+    page: [
+      "A padlock over a castle at night.",
+      "",
+      '<img src="a.webp?w=1&alt=decorative" alt="A padlock over a castle at night" />',
+    ],
+    expect: ["3:repeat"],
+  },
+  {
+    name: "a single-quoted alt is read like a double-quoted one",
+    page: [
+      "A padlock over a castle at night.",
+      "",
+      "<img src='a.webp' alt='A padlock over a castle at night' />",
+    ],
+    expect: ["3:repeat"],
+  },
+  {
+    name: "the Markdown spelling of an image is read",
+    page: [
+      "A padlock over a castle at night.",
+      "",
+      "![A padlock over a castle at night](a.webp)",
+    ],
+    expect: ["3:repeat"],
+  },
+  {
+    name: "the Markdown spelling of a badge link is read",
+    page: ["Support the work.", "", "[![](b.webp)](https://example.invalid/)"],
+    expect: ["3:unnamed-link"],
+  },
+  {
+    name: "a destination holding balanced parentheses does not hide the link",
+    page: [
+      "See the Rust handbook for details.",
+      "",
+      "[![Rust](rust.svg)](https://example.invalid/Rust_(programming_language))",
+    ],
+    expect: ["3:names-a-link"],
+  },
+  {
+    name: "a tag documented in a backtick fence is not a published image",
+    page: [
+      "How the banner is written:",
+      "",
+      "```html",
+      '<img src="a.webp" alt="How the banner is written" />',
+      "```",
+    ],
+    expect: [],
+  },
+  {
+    name: "a tag documented in a code span is not one either",
+    page: [
+      'The page writes `<img src="a.webp" alt="The page writes" />` inline.',
+    ],
+    expect: [],
+  },
+  {
+    name: "a tilde fence documenting a backtick opener swallows no image below it",
+    page: [
+      "Banner notes",
+      "",
+      "A fenced block is opened with three of a character. Written with tildes",
+      "here, because the line it documents is itself a backtick fence opener:",
+      "",
+      "~~~text",
+      "```html",
+      "~~~",
+      "",
+      "The published banner follows:",
+      "",
+      '<img src="a.webp" alt="Banner notes" />',
+      "",
+      "And a code block further down the page:",
+      "",
+      "```sh",
+      "npm run lint:alt",
+      "```",
+      "",
+      "A second image, described rather than repeated:",
+      "",
+      '<img src="a.webp" alt="Three figures beneath a glowing lock" />',
+    ],
+    expect: ["12:repeat", "22:described"],
+  },
+  {
+    name: "an image with no alt attribute at all is refused by neither rule",
+    page: ["A padlock over a castle at night.", "", '<img src="a.webp" />'],
+    expect: ["3:no-alt"],
+  },
+];
+
+// What disagrees, or an empty list. Every fixture is run rather than stopping
+// at the first, so a change that moves several readings reports all of them.
+function selfTest() {
+  const failures = [];
+  for (const fixture of FIXTURES) {
+    const read = verdict(fixture.page.join("\n"));
+    if (read.join(" ") !== fixture.expect.join(" ")) {
+      failures.push(
+        `  ${fixture.name}\n` +
+          `    rules must read: [${fixture.expect.join(", ")}]\n` +
+          `    rules read:      [${read.join(", ")}]`,
+      );
+    }
+  }
+  return failures;
+}
+
 function main(argv) {
   const files = argv.filter((a) => a !== "--gaps");
   if (files.length === 0) {
     console.error("alt-check: no files given, so nothing was examined.");
     return 2;
   }
+
+  // Before any page is read, and on every invocation rather than behind a flag.
+  // A check nobody can skip is the only kind whose passing verdict means
+  // anything, and this one is what lets a page with no image report green: the
+  // reader is proven to still read before it says it found nothing.
+  // Null until the fixtures have actually agreed. The green report on a page
+  // with no image cites this number, so the claim and the thing that earns it
+  // are one value: delete the block below and that report has nothing to cite
+  // and refuses instead of passing.
+  let proven = null;
+
+  const failures = selfTest();
+  if (failures.length > 0) {
+    console.error(
+      `alt-check: ${failures.length} of ${FIXTURES.length} built-in fixture(s) disagree with the rules as written, so the reader is broken and no verdict about a page is worth anything. No page was read.`,
+    );
+    for (const failure of failures) console.error(failure);
+    return 2;
+  }
+  proven = FIXTURES.length;
+
   if (argv.includes("--gaps")) {
     reportGaps(files);
     return 0;
@@ -445,56 +742,75 @@ function main(argv) {
       examined++;
       const where = `${file}:${image.line}`;
       const alt = image.alt === null ? "" : image.alt.trim();
+      const kind = classify(image, lines);
 
-      if (image.namesALink) {
-        if (alt === "") {
-          refused++;
+      if (REFUSALS.has(kind)) refused++;
+
+      switch (kind) {
+        case "unnamed-link":
           console.log(
             `::error file=${file},line=${image.line}::${where}: the link around this image writes no text of its own, and the image's alt is ${image.alt === null ? "missing" : "empty"}, so the link has no accessible name (WCAG 2.2 SC 2.4.4, 4.1.2). Give it the name the link should announce.`,
           );
-        } else {
+          break;
+        case "repeat":
+          console.log(
+            `::error file=${file},line=${image.line}::${where}: alt="${alt}" repeats text already written within ${WINDOW} lines of it, so a screen reader announces it twice and learns nothing from the image. Either describe the image or set alt="" if it is decorative.`,
+          );
+          break;
+        case "names-a-link":
           console.log(`${where}: alt="${alt}" names a link, not compared`);
-        }
-        continue;
-      }
-
-      if (alt === "") {
+          break;
         // Absent and empty are different pages. Neither is refused here, and
         // saying which one was read is what keeps the second case from looking
         // like a decision somebody made.
-        console.log(
-          image.alt === null
-            ? `${where}: no alt attribute, refused by neither rule, see LIMITS`
-            : `${where}: alt is empty, decorative, nothing to compare`,
-        );
-        continue;
-      }
-
-      const needle = normalise(alt);
-      if (needle === "") {
-        console.log(`${where}: alt="${alt}" holds no comparable text`);
-        continue;
-      }
-
-      const prose = proseAround(lines, image.line);
-      if (` ${prose} `.includes(` ${needle} `)) {
-        refused++;
-        console.log(
-          `::error file=${file},line=${image.line}::${where}: alt="${alt}" repeats text already written within ${WINDOW} lines of it, so a screen reader announces it twice and learns nothing from the image. Either describe the image or set alt="" if it is decorative.`,
-        );
-      } else {
-        console.log(`${where}: alt="${alt}" does not repeat nearby text`);
+        case "no-alt":
+          console.log(
+            `${where}: no alt attribute, refused by neither rule, see LIMITS`,
+          );
+          break;
+        case "decorative":
+          console.log(`${where}: alt is empty, decorative, nothing to compare`);
+          break;
+        case "no-words":
+          console.log(`${where}: alt="${alt}" holds no comparable text`);
+          break;
+        case "described":
+          console.log(`${where}: alt="${alt}" does not repeat nearby text`);
+          break;
+        // A name classify() can return and this switch cannot print is a line
+        // the report drops in silence, which is how the passing case went
+        // missing here once and was caught by diffing the two readings against
+        // a page that still had images.
+        default:
+          console.error(`alt-check: unhandled verdict "${kind}" at ${where}`);
+          return 2;
       }
     }
   }
 
-  // A run that found no images at all would otherwise print the same green as a
-  // run that read every one and found them sound.
+  // A run that found no image once failed closed here, on the ground that it
+  // would otherwise print the same green as a run that read every one and found
+  // them sound. That ground was right and the test for it was a proxy: it could
+  // not tell a page that publishes no image from a reader that had stopped
+  // seeing them, so it answered both with the same refusal. The pages now
+  // publish no image, and under the proxy this check could never have gone
+  // green on them however sound it was.
+  //
+  // What the proxy was reaching for is a run that proves it can still read, and
+  // the self-test above proves that against fixtures whose verdicts do not move
+  // when the pages change. So zero here is a measurement rather than a silence,
+  // and it is reported as one rather than passed over.
   if (examined === 0) {
-    console.error(
-      `alt-check: no <img> found in ${files.length} file(s), so the check measured nothing. Failing closed rather than reporting a clean page.`,
+    if (proven === null) {
+      console.error(
+        "alt-check: no image on the pages and nothing proving the rules still read one. Failing closed rather than reporting a clean page.",
+      );
+      return 2;
+    }
+    console.log(
+      `alt-check: 0 image(s) found across ${files.length} file(s), which is what these pages publish. The rules were proven against ${proven} built-in fixture(s) before the pages were read, so this is a page with nothing to refuse and not a reader that saw nothing.`,
     );
-    return 2;
+    return 0;
   }
 
   console.log(

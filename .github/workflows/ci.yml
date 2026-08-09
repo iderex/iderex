@@ -54,8 +54,9 @@ jobs:
           pattern='(*UTF)[\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200E}\x{200F}\x{061C}\x{200B}-\x{200D}\x{2060}]'
           # Scope: the whole tracked tree. The version this is copied from scans src,
           # tools, *.ps1 and .github because it guards a source tree; here the tracked
-          # text is prose, the most-read file is the profile README, and -I already
-          # skips assets/banner.webp and any other binary.
+          # text is prose, the most-read file is the profile README, and -I skips a
+          # binary file rather than reporting its bytes as a match, so the scope does
+          # not have to be narrowed by hand when one is added.
           # git grep: 0 = a match was found, 1 = clean, >=2 = scanner/tooling error. Capture
           # the code (the `|| rc=$?` keeps `set -e` from aborting on the clean exit-1) and
           # FAIL CLOSED on any error rather than mistaking a broken scanner for a clean tree.
@@ -116,12 +117,15 @@ jobs:
           persist-credentials: false
       - name: Refuse a tracked asset over the budget
         run: |
-          # The budget, in bytes, and the only place it is written. 600 KiB is the
-          # ceiling the banner re-encode was held to; it leaves the published banner
-          # (420,168 bytes) about a third of its size in headroom, which is enough
-          # for a re-crop or a second image without being enough for a file that
-          # makes the page slow to load. Raising it is a change to this line, which
-          # is a diff somebody reviews, rather than a number in a commit message.
+          # The budget, in bytes, and the only place it is written. 600 KiB is a
+          # per-file ceiling on anything tracked under assets/. What it is here to
+          # catch is one file large enough to make the page slow to open, which is
+          # the way a profile page gets worse without anything in the diff looking
+          # wrong. The number is a judgement rather than a measurement, and it is
+          # written here so that moving it is a diff somebody reviews rather than a
+          # number in a commit message. What the folder holds today is recorded in
+          # assets/README.md; the ceiling stands so that whatever is added next is
+          # measured before it is published.
           budget=614400
 
           # Sizes come from the index rather than from the working tree, so what is
@@ -175,11 +179,13 @@ jobs:
       - name: Check every href and src on the rendered page
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
-          # The page is largely raw HTML, so a checker reading only [text](url)
-          # would miss the badges and the banner, which is most of what can
-          # actually rot. lychee reads href and src out of the HTML as well.
-          # The banner is a relative path: it is resolved against the file that
-          # names it and checked as a path on disk rather than fetched.
+          # Markdown admits inline HTML and GitHub renders it, so a checker that
+          # read only [text](url) would stop covering a target the day one is
+          # written as a tag. lychee reads href and src as well, which costs
+          # nothing on a page that carries no tag.
+          # Not every target is a URL either: README.md names NOTICE.md by
+          # relative path, and lychee counts it among the links it checks rather
+          # than skipping it.
           args: --config lychee.toml --no-progress README.md assets/README.md
           # A red run blocks a branch, and nothing merges off the weekly run. A
           # host that is down at 03:17 on a Sunday would otherwise leave the

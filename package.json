@@ -4,8 +4,7 @@
   "description": "Tooling pin for the profile README. Not a published package.",
   "scripts": {
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint:alt": "node tools/alt-check.mjs README.md assets/README.md"
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "prettier": "3.9.6"

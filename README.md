@@ -11,32 +11,31 @@ check it.
 
 ## Current work
 
-**[Flowfin](https://github.com/Flowfin)**
+### [Flowfin](https://github.com/Flowfin)
 
 Native clients and server plugins for Jellyfin, held to a speed budget written
 as numbers a build can miss rather than as an intention. Twelve plugins, a
 shared design system, and colour presets for each form of colour vision
 deficiency rather than a single accessible mode.
 
-**[jellyfin-plugin-sso](https://github.com/Flowfin/jellyfin-plugin-sso)** ·
-C#, .NET 9
+### [jellyfin-plugin-sso](https://github.com/Flowfin/jellyfin-plugin-sso) · C#, .NET 9
 
 Single sign-on for Jellyfin over OpenID Connect and SAML 2.0, with verified
 setup guides for Keycloak, Authelia, authentik, Dex, Pocket ID, Kanidm and
 Zitadel. A security-first continuation of the archived `9p4/jellyfin-plugin-sso`.
 
-**[cudec](https://github.com/iderex/cudec)** · C++, CUDA
+### [cudec](https://github.com/iderex/cudec) · C++, CUDA
 
 GPU decompression that is auditable and fuzz-tested. LZ4 batch decoding on
 NVIDIA hardware today; Snappy, GDeflate and Zstd planned.
 
-**[swarm.asm](https://github.com/iderex/swarm.asm)** · x64 assembly
+### [swarm.asm](https://github.com/iderex/swarm.asm) · x64 assembly
 
 A particle-life engine written entirely in hand-written x64 assembly with AVX2.
 The target is a million particles at 60 frames per second, with no GPU, no
 dependencies and one small executable.
 
-**[linux](https://github.com/iderex/linux)** · C
+### [linux](https://github.com/iderex/linux) · C
 
 Working tree for Linux kernel development and upstream contributions.
 

@@ -50,3 +50,8 @@ If something here saved you time, you can
 [buy me a coffee](https://buymeacoffee.com/iderex).
 
 See [NOTICE.md](NOTICE.md) for the intended-use notice.
+
+## Contact
+
+Mail reaches me at nils.lehnen@proton.me, and clients that support Web Key
+Directory find a key for it on their own.

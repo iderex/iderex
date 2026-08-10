@@ -163,6 +163,111 @@ jobs:
           echo "$count tracked file(s) under assets/ measured, $over over budget."
           [ "$over" -eq 0 ] || exit 1
 
+  images:
+    name: Refuse an image this repository does not host
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Read-only: the scan greps the tracked Markdown, it never writes a file.
+    permissions:
+      contents: read
+
+    steps:
+      # The scan reads the index, so the tracked tree has to be present: no
+      # sparse-checkout and no path filter on this step.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes via git, so do not persist the GITHUB_TOKEN in .git/config.
+          persist-credentials: false
+      - name: Refuse an image loaded from anywhere but this repository
+        run: |
+          # WHY: an image on this page that is served by somebody else is a
+          # request every renderer outside github.com makes with no proxy in
+          # front of it, and its content is whatever that host decides to
+          # return on the day. GitHub's Camo proxy covers one of those and not
+          # the other: it keeps a reader's address off the image host while
+          # they are on github.com, and the picture is still generated
+          # elsewhere, still gone when that host is down, and still cached, so
+          # a badge that reports a number reports the number from an earlier
+          # fetch. Twelve shields and a banner stood on this page until they
+          # were removed, and until this job nothing refused their return.
+          #
+          # What counts as this repository's own image is a relative path.
+          # A source opening with a URI scheme (https:, http:, data:), with a
+          # protocol-relative //, or with a site-root / is refused; anything
+          # else resolves inside the tree, where the assets job already sizes
+          # it.
+          absolute="(?:[A-Za-z][A-Za-z0-9+.-]*:|//|/)"
+
+          # Two shapes reach a renderer: inline Markdown, ![alt](src), and an
+          # HTML attribute that loads a picture. The attribute half does not
+          # require the tag on the same line, because a wrapped <img> would
+          # otherwise carry its src past a line-based scanner. The cost of that
+          # width, said here rather than left to be found: a src= inside a
+          # fenced code block is refused as well. This page publishes no code
+          # examples, and refusing a documented URL is the direction to be
+          # wrong in.
+          #
+          # THE BOUND OF THIS SCAN, which is not a gap to read past: a
+          # reference-style image, ![alt][ref], whose URL sits in a [ref]:
+          # definition somewhere else in the file. Matching a definition to its
+          # use is not something a grep does, so that shape is not what this
+          # pattern refuses. Nothing on these pages is written that way today.
+          pattern="!\[[^]]*\]\(\s*<?\s*${absolute}|\b(?:src|srcset)\s*=\s*[\"']?\s*${absolute}"
+
+          # A run that scanned no file would otherwise print the same green as
+          # one that scanned every page and found them clean. The list is taken
+          # first and on its own, so a git that could not answer is reported as
+          # a git that could not answer rather than as a tree holding no page.
+          lrc=0
+          mdlist=$(git ls-files -- '*.md') || lrc=$?
+          if [ "$lrc" -ne 0 ]; then
+            echo "::error::could not list the tracked Markdown files (git ls-files exit $lrc) -- failing closed."
+            exit 1
+          fi
+          mdcount=0
+          if [ -n "$mdlist" ]; then
+            mdcount=$(printf '%s\n' "$mdlist" | wc -l)
+          fi
+          if [ "$mdcount" -eq 0 ]; then
+            echo "::error::no tracked Markdown files -- the scan read nothing, which is not the same as a page that loads no foreign image."
+            exit 1
+          fi
+
+          # How many image references there are at all, so the line this job
+          # ends on says what it examined rather than only what it did not
+          # find. git grep: 1 is a clean tree here, >=2 is the scanner failing.
+          seen="!\[[^]]*\]\(|\b(?:src|srcset)\s*="
+          crc=0
+          matches=$(git grep -hIPo "$seen" -- '*.md') || crc=$?
+          if [ "$crc" -ge 2 ]; then
+            echo "::error::could not count the image references (git grep exit $crc) -- failing closed instead of reporting a page nothing was read on."
+            exit 1
+          fi
+          found=0
+          if [ -n "$matches" ]; then
+            found=$(printf '%s\n' "$matches" | wc -l)
+          fi
+
+          # git grep: 0 = a match was found, 1 = clean, >=2 = scanner/tooling
+          # error. Capture the code (the `|| rc=$?` keeps `set -e` from
+          # aborting on the clean exit-1) and FAIL CLOSED on any error rather
+          # than mistaking a broken scanner for a page that fetches nothing.
+          rc=0
+          git grep -nIP "$pattern" -- '*.md' || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::An image above is loaded from outside this repository. Commit the file under assets/ and reference it by relative path, or take the image out."
+              exit 1
+              ;;
+            1)
+              echo "$mdcount tracked Markdown file(s) scanned, $found image reference(s) found, none of them loaded from outside this repository."
+              ;;
+            *)
+              echo "::error::image source scanner error (git grep exit $rc) -- failing closed instead of assuming the page fetches nothing."
+              exit 1
+              ;;
+          esac
+
   links:
     name: Check the links the page renders
     runs-on: ubuntu-latest

@@ -1,0 +1,1 @@
+This file exists to make the Unicode guard go red: ‮<- a RIGHT-TO-LEFT OVERRIDE hides here.
